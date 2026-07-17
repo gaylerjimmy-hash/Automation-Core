@@ -1,25 +1,23 @@
 #include "automation_core/Frame/FrameAssembler.h"
-
+#include "automation_core/Frame/FrameError.h"
+#include <algorithm>
 namespace automation_core {
-
-FrameAssembler::FrameAssembler(
-    std::size_t maximum_frame_size,
-    std::chrono::milliseconds frame_timeout
-)
-    : maximum_frame_size_(maximum_frame_size),
-      frame_timeout_(frame_timeout) {}
-
-FrameResult FrameAssembler::assemble(
-    const std::string& connection_id,
-    const std::string& raw_input
-) const {
-    (void)connection_id;
-    (void)raw_input;
-    return {
-        std::nullopt,
-        FrameError::Empty,
-        "FrameAssembler is not implemented yet."
-    };
+FrameAssembler::FrameAssembler(size_t m,std::chrono::milliseconds t):max_(m),timeout_(t){}
+static std::string norm(std::string s){
+    std::string o;
+    for(size_t i=0;i<s.size();++i){
+        if(s[i]=='\r'){ if(i+1<s.size()&&s[i+1]=='\n') ++i; o+='\n';}
+        else o+=s[i];
+    }
+    return o;
 }
-
-} // namespace automation_core
+FrameResult FrameAssembler::assemble(const std::string& id,const std::string& raw) const{
+    if(id.empty()||raw.empty()) return {std::nullopt,FrameError::Empty,"empty"};
+    if(raw.size()>max_) return {std::nullopt,FrameError::TooLarge,"too large"};
+    auto n=norm(raw);
+    while(!n.empty()&&(n.back()=='\n'||n.back()==' '||n.back()=='\t')) n.pop_back();
+    if(!(n=="END"||(n.size()>=4&&n.substr(n.size()-4)=="\nEND")))
+        return {std::nullopt,FrameError::MissingTerminator,"missing END"};
+    return {Frame{id,n+"\n"},FrameError::None,""};
+}
+}
