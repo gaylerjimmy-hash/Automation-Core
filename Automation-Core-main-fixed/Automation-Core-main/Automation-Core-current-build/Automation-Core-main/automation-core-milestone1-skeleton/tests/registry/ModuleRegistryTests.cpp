@@ -1,0 +1,1 @@
+// ModuleRegistry tests go here.
