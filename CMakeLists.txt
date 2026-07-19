@@ -26,6 +26,7 @@ add_library(automation_core
     src/Transport/ConsoleTransport.cpp
     src/Transport/SerialTransport.cpp
     src/Core/Core.cpp
+    src/Protocol/MessageSerializer.cpp
 )
 
 target_include_directories(
@@ -59,6 +60,7 @@ if(AUTOMATION_CORE_BUILD_TESTS)
         tests/frame/FrameAssemblerTests.cpp
         tests/parser/ParserTests.cpp
         tests/validator/ValidatorTests.cpp
+        tests/serializer/MessageSerializerTests.cpp
         tests/registry/ModuleRegistryTests.cpp
         tests/router/MessageRouterTests.cpp
     )

@@ -18,10 +18,6 @@ public:
         const std::string& code,
         const std::string& detail
     ) const;
-
-    [[nodiscard]] std::string serialize(
-        const Message& message
-    ) const;
 };
 
 } // namespace automation_core
