@@ -10,12 +10,12 @@ int run_module_registry_tests();
 int main()
 {
     const int failures =
-        run_frame_tests() +
-        run_parser_tests() +
-        run_validator_tests() +
-        run_connection_manager_tests() +
-        run_module_registry_tests()
-        run_message_router_tests();
+        run_frame_tests()
+        + run_parser_tests()
+        + run_validator_tests()
+        + run_connection_manager_tests()
+        + run_module_registry_tests()
+        + run_message_router_tests();
 
     if (failures != 0)
     {
