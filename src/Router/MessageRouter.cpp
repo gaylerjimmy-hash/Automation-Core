@@ -20,17 +20,6 @@ RouteResult MessageRouter::route(
     const std::string& connection_id,
     const Message& message
 ) {
-    if (connection_id.empty()) {
-        return {
-            responses_.error(
-                "",
-                "CONNECTION",
-                "Connection ID is required"
-            ),
-            "Rejected message without connection ID"
-        };
-    }
-
     const auto* hello = std::get_if<HelloMessage>(&message.payload);
 
     if (hello == nullptr) {
@@ -41,6 +30,17 @@ RouteResult MessageRouter::route(
                 "Only HELLO messages are currently supported"
             ),
             "Unsupported message type"
+        };
+    }
+
+    if (connection_id.empty()) {
+        return {
+            responses_.error(
+                hello->message_id,
+                "CONNECTION",
+                "Connection ID is required"
+            ),
+            "Rejected message without connection ID"
         };
     }
 

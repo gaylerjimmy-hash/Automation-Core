@@ -107,6 +107,11 @@ void test_rejects_invalid_hello() {
     );
 
     expect(
+        error && error->message_id == "msg-1",
+        "validation error lost message ID"
+    );
+
+    expect(
         registry.list().empty(),
         "invalid HELLO entered the registry"
     );
@@ -129,6 +134,11 @@ void test_rejects_missing_connection_id() {
     );
 
     expect(
+        error && error->message_id == "msg-1",
+        "missing connection error lost message ID"
+    );
+
+    expect(
         registry.list().empty(),
         "message without connection ID entered registry"
     );
@@ -140,10 +150,12 @@ void test_reconnects_same_session() {
     ResponseBuilder responses;
     MessageRouter router{validator, registry, responses};
 
-    router.route("connection-1", make_hello());
+    static_cast<void>(router.route("connection-1", make_hello()));
+    static_cast<void>(router.route("connection-2", make_hello()));
+    static_cast<void>(router.route("connection-3", make_hello()));
 
     const RouteResult result =
-        router.route("connection-2", make_hello());
+        router.route("connection-4", make_hello());
 
     const auto* ack = get_ack(result);
     const auto module = registry.find("scale-01");
@@ -154,8 +166,8 @@ void test_reconnects_same_session() {
     );
 
     expect(
-        module && module->connection_id == "connection-2",
-        "same-session reconnect did not update connection binding"
+        module && module->connection_id == "connection-4",
+        "registry did not retain newest connection"
     );
 }
 
@@ -165,10 +177,10 @@ void test_rejects_duplicate_identity() {
     ResponseBuilder responses;
     MessageRouter router{validator, registry, responses};
 
-    router.route(
+    static_cast<void>(router.route(
         "connection-1",
         make_hello("scale-01", "81A9C5D2", "msg-1")
-    );
+    ));
 
     const RouteResult result = router.route(
         "connection-2",
@@ -189,23 +201,62 @@ void test_rejects_duplicate_identity() {
     );
 }
 
+void test_duplicate_after_reconnect() {
+    Validator validator;
+    ModuleRegistry registry;
+    ResponseBuilder responses;
+    MessageRouter router{validator, registry, responses};
+
+    static_cast<void>(router.route("connection-1", make_hello()));
+    static_cast<void>(router.route("connection-2", make_hello()));
+
+    const RouteResult result =
+        router.route(
+            "connection-3",
+            make_hello(
+                "scale-01",
+                "AAAAAAAA",
+                "msg-2"
+            )
+        );
+
+    const auto* error = get_error(result);
+    const auto module = registry.find("scale-01");
+
+    expect(
+        error && error->code == "DUPLICATE_IDENTITY",
+        "duplicate after reconnect was accepted"
+    );
+
+    expect(
+        module && module->connection_id == "connection-2",
+        "duplicate after reconnect replaced active binding"
+    );
+}
+
 void test_rejects_quarantined_identity() {
     Validator validator;
     ModuleRegistry registry;
     ResponseBuilder responses;
     MessageRouter router{validator, registry, responses};
 
-    router.route("connection-1", make_hello());
+    static_cast<void>(router.route("connection-1", make_hello()));
     registry.quarantine("scale-01");
 
     const RouteResult result =
         router.route("connection-2", make_hello());
 
     const auto* error = get_error(result);
+    const auto module = registry.find("scale-01");
 
     expect(
         error && error->code == "QUARANTINED",
         "quarantined identity was not rejected"
+    );
+
+    expect(
+        module && module->connection_id == "connection-1",
+        "quarantined reconnect changed registry"
     );
 }
 
@@ -232,6 +283,16 @@ void test_rejects_unsupported_message() {
         error && error->code == "UNSUPPORTED",
         "unsupported message type was not rejected"
     );
+
+    expect(
+        error && error->message_id.empty(),
+        "unsupported message fabricated a message ID"
+    );
+
+    expect(
+        registry.list().empty(),
+        "unsupported message modified registry"
+    );
 }
 
 } // namespace
@@ -244,8 +305,9 @@ int run_message_router_tests() {
     test_rejects_missing_connection_id();
     test_reconnects_same_session();
     test_rejects_duplicate_identity();
+    test_duplicate_after_reconnect();
     test_rejects_quarantined_identity();
     test_rejects_unsupported_message();
 
     return failures;
-}// MessageRouter tests go here.
+}
